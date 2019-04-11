@@ -2,6 +2,7 @@ package sms
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,6 +10,8 @@ import (
 	"regexp"
 	"strconv"
 	"time"
+
+	"github.com/valyala/fastjson"
 )
 
 // Base API url
@@ -59,18 +62,20 @@ var error_no_response = errors.New("Something went wrong")
 //
 // id is your api_id
 func NewClient(id string) *SmsClient {
-	return NewClientWithHttp(id, &http.Client{})
+	return NewClientWithHttp(id, http.DefaultClient)
 }
 
 // NewClientWithHttp creates a new SmsClient instance
 //
 // and allows you to pass a http.Client.
 func NewClientWithHttp(id string, client *http.Client) *SmsClient {
+	if client == nil {
+		client = http.DefaultClient
+	}
 	c := &SmsClient{
 		ApiId: id,
 		Http:  client,
 	}
-
 	return c
 }
 
@@ -131,6 +136,28 @@ func (c *SmsClient) makeRequest(endpoint string, params url.Values) (Response, [
 	return res, lines, nil
 }
 
+func (c *SmsClient) doRequest(endpoint string, params url.Values, response interface{}) error {
+	params.Set("api_id", c.ApiId)
+	params.Set("json", "1")
+	req, err := http.NewRequest("GET", API_URL+endpoint, nil)
+	if err != nil {
+		return fmt.Errorf("init new request: %v", err)
+	}
+	req.Form = params
+	resp, err := c.Http.Do(req)
+	if err != nil {
+		return fmt.Errorf("do request: %v", err)
+	}
+	defer resp.Body.Close()
+	err = json.NewDecoder(resp.Body).Decode(response)
+	if err != nil {
+		return fmt.Errorf("cannot decode json response: %v", err)
+	}
+	return nil
+}
+
+var re = regexp.MustCompile("^balance=")
+
 // SmsSend will send a Sms item to Service
 func (c *SmsClient) SmsSend(p *Sms) (Response, error) {
 	var params = url.Values{}
@@ -173,7 +200,6 @@ func (c *SmsClient) SmsSend(p *Sms) (Response, error) {
 	}
 
 	var ids []string
-	re := regexp.MustCompile("^balance=")
 
 	for i := 1; i < len(lines); i++ {
 		isBalance := re.MatchString(lines[i])
@@ -195,6 +221,7 @@ func (c *SmsClient) SmsSend(p *Sms) (Response, error) {
 }
 
 // SmsStatus will get a status of message
+// Deprecated: use GetStatus instead
 func (c *SmsClient) SmsStatus(id string) (Response, error) {
 	params := url.Values{}
 	params.Set("id", id)
@@ -205,6 +232,67 @@ func (c *SmsClient) SmsStatus(id string) (Response, error) {
 	}
 
 	return res, nil
+}
+
+type StatusResponse struct {
+	// Represents request status (no authorization problems, etc.)
+	Status string `json:"status"`
+	// Represents request status (no authorization problems, etc.)
+	StatusCode int `json:"status_code"`
+	// List of requested sms statuses
+	SMSStatuses []SMSStatus `json:"sms"` //[]SMSStatus `json:"sms"`
+	// Your balance after sending
+	Balance float64 `json:"balance"`
+}
+
+type SMSStatus struct {
+	MessageId  string
+	Status     string `json:"status"`
+	StatusCode int    `json:"status_code"`
+	StatusText string `json:"status_text"`
+}
+
+// GetStatus will get a status of messages (http://sms.ru/api/status).
+// Note, that returned value may not contain all requested ids.
+func (c *SmsClient) GetStatus(ids ...string) (StatusResponse, error) {
+	params := url.Values{}
+	params["id"] = ids
+
+	// we declare temporary structure
+	type statusResponse struct {
+		Status     string `json:"status"`
+		StatusCode int    `json:"status_code"`
+		// because they return object, not a list ¯\_(ツ)_/¯
+		SMSStatuses json.RawMessage `json:"sms"`
+		Balance     float64         `json:"balance"`
+	}
+	var tmp statusResponse
+	err := c.doRequest("/sms/status", params, &tmp)
+	if err != nil {
+		return StatusResponse{}, err
+	}
+	v, err := fastjson.ParseBytes(tmp.SMSStatuses)
+	if err != nil {
+		return StatusResponse{}, fmt.Errorf("parse 'sms' block: %v", err)
+	}
+	statuses := make([]SMSStatus, len(ids))
+	i := 0
+	v.GetObject("sms").Visit(func(key []byte, v *fastjson.Value) {
+		statuses[i] = SMSStatus{
+			MessageId:  string(key),
+			Status:     string(v.GetStringBytes("status")),
+			StatusCode: v.GetInt("status_code"),
+			StatusText: string(v.GetStringBytes("status_text")),
+		}
+		i++
+	})
+	resp := StatusResponse{
+		Status:      tmp.Status,
+		StatusCode:  tmp.StatusCode,
+		SMSStatuses: statuses,
+		Balance:     tmp.Balance,
+	}
+	return resp, nil
 }
 
 // SmsStatus will get a status of message

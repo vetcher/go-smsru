@@ -1,9 +1,10 @@
 package sms_test
 
 import (
-	"github.com/dmitriy-borisov/go-smsru"
 	"os"
 	"testing"
+
+	sms "github.com/vetcher/go-smsru"
 )
 
 const (
