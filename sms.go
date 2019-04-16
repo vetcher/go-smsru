@@ -266,6 +266,13 @@ func (c *SmsClient) GetStatus(ids ...string) (StatusResponse, error) {
 	if err != nil {
 		return StatusResponse{}, err
 	}
+	if tmp.StatusCode != 100 {
+		return StatusResponse{
+			Status:     tmp.Status,
+			StatusCode: tmp.StatusCode,
+			Balance:    tmp.Balance,
+		}, nil
+	}
 	v, err := fastjson.ParseBytes(tmp.SMSStatuses)
 	if err != nil {
 		return StatusResponse{}, fmt.Errorf("parse 'sms' block: %v", err)
