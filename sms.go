@@ -139,7 +139,7 @@ func (c *SmsClient) makeRequest(endpoint string, params url.Values) (Response, [
 func (c *SmsClient) doGetRequest(endpoint string, params url.Values, response interface{}) error {
 	params.Set("api_id", c.ApiId)
 	params.Set("json", "1")
-	resp, err := c.Http.Get(API_URL + endpoint + params.Encode())
+	resp, err := c.Http.Get(API_URL + endpoint + "?" + params.Encode())
 	if err != nil {
 		return fmt.Errorf("do request: %v", err)
 	}
