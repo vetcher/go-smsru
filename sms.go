@@ -136,15 +136,10 @@ func (c *SmsClient) makeRequest(endpoint string, params url.Values) (Response, [
 	return res, lines, nil
 }
 
-func (c *SmsClient) doRequest(endpoint string, params url.Values, response interface{}) error {
+func (c *SmsClient) doGetRequest(endpoint string, params url.Values, response interface{}) error {
 	params.Set("api_id", c.ApiId)
 	params.Set("json", "1")
-	req, err := http.NewRequest("GET", API_URL+endpoint, nil)
-	if err != nil {
-		return fmt.Errorf("init new request: %v", err)
-	}
-	req.Form = params
-	resp, err := c.Http.Do(req)
+	resp, err := c.Http.Get(API_URL + endpoint + params.Encode())
 	if err != nil {
 		return fmt.Errorf("do request: %v", err)
 	}
@@ -267,7 +262,7 @@ func (c *SmsClient) GetStatus(ids ...string) (StatusResponse, error) {
 		Balance     float64         `json:"balance"`
 	}
 	var tmp statusResponse
-	err := c.doRequest("/sms/status", params, &tmp)
+	err := c.doGetRequest("/sms/status", params, &tmp)
 	if err != nil {
 		return StatusResponse{}, err
 	}
