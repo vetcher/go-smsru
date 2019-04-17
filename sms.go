@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/valyala/fastjson"
@@ -251,7 +252,7 @@ type SMSStatus struct {
 // Note, that returned value may not contain all requested ids.
 func (c *SmsClient) GetStatus(ids ...string) (StatusResponse, error) {
 	params := url.Values{}
-	params["id"] = ids
+	params.Set("id", strings.Join(ids, ","))
 
 	// we declare temporary structure
 	type statusResponse struct {
