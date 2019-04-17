@@ -252,7 +252,7 @@ type SMSStatus struct {
 // Note, that returned value may not contain all requested ids.
 func (c *SmsClient) GetStatus(ids ...string) (StatusResponse, error) {
 	params := url.Values{}
-	params.Set("id", strings.Join(ids, ","))
+	params.Set("sms_id", strings.Join(ids, ","))
 
 	// we declare temporary structure
 	type statusResponse struct {
