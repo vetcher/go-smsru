@@ -279,7 +279,7 @@ func (c *SmsClient) GetStatus(ids ...string) (StatusResponse, error) {
 	}
 	statuses := make([]SMSStatus, len(ids))
 	i := 0
-	v.GetObject("sms").Visit(func(key []byte, v *fastjson.Value) {
+	v.GetObject().Visit(func(key []byte, v *fastjson.Value) {
 		statuses[i] = SMSStatus{
 			MessageId:  string(key),
 			Status:     string(v.GetStringBytes("status")),
