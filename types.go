@@ -34,4 +34,5 @@ type Sms struct {
 	Time      time.Time         `json:"time"`
 	Test      bool              `json:"test"`
 	PartnerId int               `json:"partner_id"`
+	IP        string            `json:"ip"`
 }
