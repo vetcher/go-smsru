@@ -190,6 +190,10 @@ func (c *SmsClient) SmsSend(p *Sms) (Response, error) {
 		params.Set("translit", "1")
 	}
 
+	if p.IP != "" {
+		params.Set("ip", p.IP)
+	}
+
 	res, lines, err := c.makeRequest("/sms/send", params)
 	if err != nil {
 		return Response{}, err
